@@ -1,11 +1,9 @@
 from setuptools import find_packages
 from setuptools import setup
 
-
 def readme():
     with open('README.md') as f:
         return f.read()
-
 
 setup(name='fmc_rest_client',
       version='0.1',
@@ -20,9 +18,9 @@ setup(name='fmc_rest_client',
           'Topic :: System :: Security Administration'
       ],
       keywords='firepower management rest-api',
-      url='https://github.com/CiscoDevNet/fmc_rest_client',
+      url='https://github.com/macvjuhu/fmc_rest_client',
       author='Vikas Sharma',
-      author_email='vsharma2@cisco.com',
+      author_email='macvjuhu@yahoo.com',
       license='MIT',
       packages=find_packages(),
       install_requires=[
