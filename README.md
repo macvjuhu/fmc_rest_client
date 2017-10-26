@@ -36,6 +36,10 @@ print(host1.json())
 # delete host1 from FMC
 fmc.remove(host1)
 ```
+
+Checkout the directory **'samples'** for more example script using this client.
+To add new resource type checkout examples under 'fmc_rest_client.resources' module.
+
 ### Adding a new FMC resource class
 To add a new class representing FMC REST API resource, follow the below guideline
  * Class name should be singular name of the FMC REST resource or url endpoint.
