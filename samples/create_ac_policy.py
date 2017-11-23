@@ -77,22 +77,28 @@ if __name__ == "__main__":
         print('Created acp ' + acp.name)
         net1 = Host('host1', '1.1.1.1')
         net1 = fmc.create(net1)
+        net2 = Host('host2', '2.2.2.2')
+        net2 = fmc.create(net2)
         rule1 = AccessRule('rule1', acp)
         rule1.action = 'ALLOW'
         rule1.sourceNetworks = { 'objects' : [ net1]}
-        rule1 = fmc.create(rule1)
-        print(rule1.json())
+        rule2 = AccessRule('rule2', acp)
+        rule2.action = 'ALLOW'
+        rule2.sourceNetworks = {'objects': [net1]}
+        rule2.destinationNetworks = {'objects': [net2]}
+        rules = [rule1, rule2]
+        rules = fmc.create(rules)
+        print(rules[1].json())
         # another network object
-        net2 = Host('host2', '2.2.2.2')
-        net2 = fmc.create(net2)
         # Add another source network in rule1
-        rule1.sourceNetworks['objects'].append(net2)
-        rule1 = fmc.update(rule1)
+        #rule1.sourceNetworks['objects'].append(net2)
+        #rule1 = fmc.update(rule1)
+
 
     finally:
-        #fmc.remove(acp)
-        #fmc.remove(net1)
-        #fmc.remove(net2)
-        pass
+        fmc.remove(acp)
+        fmc.remove(net1)
+        fmc.remove(net2)
+        #pass
 
 

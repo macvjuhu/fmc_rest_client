@@ -12,18 +12,21 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 # logger = logging.getLogger(__name__)
 logger = logging.getLogger('FMC_REST_CLIENT')
 
-NAME_EXISTS_ERROR = ['name already exists',
+NAME_EXISTS_ERROR = ['already exists',
                      'conflicts with predefined name on device',
                      'Duplicate Name']
 INVALID_NAME_ERROR = ['Invalid Object Name']
 
 TOO_MANY_REQUESTS = 'Too Many Requests'
 
-class ResourceException(BaseException):
+class ResourceException(Exception):
+    GENERIC = 'generic'
     READ_ONLY = 'read-only'
     NAME_EXISTS = 'name-exists'
     INVALID_OBJECT_NAME = 'invalid-object-name'
-    GENERIC = 'generic'
+    AUTH_FAILED = 'auth-failed'
+    TOO_MANY_REQUESTS = 'too-many-requests'
+
 
     def __init__(self, code, message=None):
         self.code = code
@@ -83,15 +86,82 @@ class FMCRawRestClient(object):
             if url[-1] == '/':
                 url = url[:-1]
             logger.debug('REST Call: [' + method.upper() + '] ' + url + '?offset=' + str(offset))
-            headers = {'Content-Type': 'application/json', 'X-auth-access-token': self.auth_token}
             # print(headers)
-            return self._rest_call(method, url, post_data, headers, offset, expanded)
+            reauth_retry_count = 3
+            request_retry_count = 5
+            while True:
+                try:
+                    headers = {'Content-Type': 'application/json', 'X-auth-access-token': self.auth_token}
+                    status_code, response_json =  self._rest_call(method, url, post_data, headers, offset, expanded)
+                    return response_json
+                except ResourceException as e:
+                    if e.code == ResourceException.AUTH_FAILED and reauth_retry_count > 0:
+                        reauth_retry_count -= 1
+                        self.auth_token = self.get_auth_token()
+                    elif e.code == ResourceException.TOO_MANY_REQUESTS and request_retry_count > 0:
+                        request_retry_count -= 1
+                        time.sleep(5)
+                    else:
+                        raise e
         except Exception as e:
             logger.error('REST called failed: ' + str(e))
             raise e
         finally:
             end_time = datetime.now().replace(microsecond=0)
             logger.debug('REST call completed in ' + str(end_time - start_time))
+
+    def _rest_call(self, method, url, post_data, headers, offset=0, expanded=False):
+        response = None
+        data = None
+        try:
+            response = self._http_request(method, url, post_data, headers, offset, expanded)
+            if response is not None:
+                status_code = response.status_code
+                data = response.text
+                # print('Status code is: ' + str(status_code))
+                if status_code == 200 or status_code == 201 or status_code == 202:
+                    # print(method + ' was successful...')
+                    response_json = json.loads(data)
+                    # print(json.dumps(json_resp,sort_keys=True,indent=4, separators=(',', ': ')))
+                    return status_code, response_json
+                elif status_code == 401:
+                    logger.debug('Re-authenticating ...')
+                    raise ResourceException(ResourceException.AUTH_FAILED)
+                        #self._rest_call(method, url, post_data, headers, offset, expanded)
+                elif status_code == 404 and method == 'list':  # today REST API returns 404 when the list is empty
+                    return [], 0
+                elif status_code == 405 and (method == 'create' or method == 'post'):
+                    raise ResourceException(ResourceException.READ_ONLY)
+                elif status_code == 400 and (method == 'create' or method == 'post'):
+                    response_json = json.loads(data)
+                    desc = response_json['error']['messages'][0]['description']
+
+                    for error in NAME_EXISTS_ERROR:
+                        if error in desc:
+                            raise ResourceException(ResourceException.NAME_EXISTS)
+                    for error in INVALID_NAME_ERROR:
+                        if error in desc:
+                            raise ResourceException(ResourceException.INVALID_OBJECT_NAME)
+                    raise ResourceException(ResourceException.GENERIC, desc)
+                elif (status_code == 429) and (method == 'create' or method == 'post'):
+                    response_json = json.loads(data)
+                    reason_phrase = response_json['reasonPhrase']
+                    raise ResourceException(ResourceException.TOO_MANY_REQUESTS, reason_phrase)
+                else:
+                    args = {'method': method.upper(), 'url': response.url, 'status_code': response.status_code,
+                             'response': response.text}
+                    msg = '[{method}] {url}\n\tHTTP Error:{status_code}, Response Data: {response}'.format(**args)
+                    raise ResourceException(ResourceException.GENERIC, msg)
+                    # response.raise_for_status()
+                    # print ('Error occurred in --> ' + response)
+        except requests.exceptions.HTTPError as err:
+            logger.error('Error in connection --> ' + str(err))
+            raise Exception(str(err))
+        except ValueError as e:
+            logger.error('Error with response ' + str(data))
+            raise e
+        finally:
+            if response: response.close()
 
     def _http_request(self, method, url, post_data, headers, offset=0, expanded=False):
         response = None
@@ -114,66 +184,6 @@ class FMCRawRestClient(object):
         except Exception as e:
             raise e
         return response
-
-    def _rest_call(self, method, url, post_data, headers, offset=0, expanded=False):
-        response = None
-        data = None
-        try:
-            response = self._http_request(method, url, post_data, headers, offset, expanded)
-            if response is not None:
-                status_code = response.status_code
-                data = response.text
-                # print('Status code is: ' + str(status_code))
-                if status_code == 200 or status_code == 201 or status_code == 202:
-                    # print(method + ' was successful...')
-                    json_resp = json.loads(data)
-                    # print(json.dumps(json_resp,sort_keys=True,indent=4, separators=(',', ': ')))
-                    return json_resp
-                elif status_code == 401:
-                    logger.debug('Re-authenticating ...')
-                    if response:
-                        response.close()
-                    response = None
-                    if self.reauth_count <= 3:
-                        self.auth_token = self.get_auth_token()
-                        self._rest_call(method, url, post_data, headers, offset, expanded)
-                elif status_code == 404 and method == 'list':  # today REST API returns 404 when the list is empty
-                    return [], 0
-                elif status_code == 405 and (method == 'create' or method == 'post'):
-                    raise ResourceException(ResourceException.READ_ONLY)
-                elif (status_code == 400 or status_code == 500) and (method == 'create' or method == 'post'):
-                    json_resp = json.loads(data)
-                    desc = json_resp['error']['messages'][0]['description']
-
-                    for error in NAME_EXISTS_ERROR:
-                        if error in desc:
-                            raise ResourceException(ResourceException.NAME_EXISTS)
-                    for error in INVALID_NAME_ERROR:
-                        if error in desc:
-                            raise ResourceException(ResourceException.INVALID_OBJECT_NAME)
-                    raise ResourceException(ResourceException.GENERIC, desc)
-                elif (status_code == 429) and (method == 'create' or method == 'post'):
-                    json_resp = json.loads(data)
-                    reason_phrase = json_resp['reasonPhrase']
-
-                    if TOO_MANY_REQUESTS == reason_phrase:
-                        time.sleep(5)
-                        self._rest_call(method, url, post_data, headers, offset)
-
-                else:
-                    raise Exception('[' + method.upper() + '] ' + response.url + '\n' \
-                                                                                 '\tHTTP Error: ' + str(
-                        response.status_code) + ', Response Data: ' + response.text)
-                    # response.raise_for_status()
-                    # print ('Error occurred in --> ' + response)
-        except requests.exceptions.HTTPError as err:
-            logger.error('Error in connection --> ' + str(err))
-            raise Exception(str(err))
-        except ValueError as e:
-            logger.error('Error with response ' + str(data))
-            raise e
-        finally:
-            if response: response.close()
 
     def _list(self, resource, offset=None):
         url_path = resource.get_api_path()
@@ -220,17 +230,26 @@ class FMCBaseRestClient(FMCRawRestClient):
 
     def _bulk_create(self, resources, bulk_limit=1000):
         url_path = resources[0].get_api_path() + '?bulk=true'
-        bulk_resources = {'items': resources}
+        bulk_resources = resources
         if len(resources) > bulk_limit:
-            bulk_resources = {'items': resources[0:(bulk_limit - 1)]}
+            bulk_resources = resources[:bulk_limit]
         post_data = json_dump(bulk_resources)
         json_resp = self.post(url_path, post_data)
-        return resources
+        #print('Bulk response ' + str(json_resp))
+        new_resources = []
+        for item in json_resp['items']:
+            resource = resources[0].__class__()
+            resource.json_load(item)
+            new_resources.append(resource)
+        if len(resources) > bulk_limit:
+            tmp_resources = self._bulk_create(resources[bulk_limit:])
+            new_resources.extend(tmp_resources)
+        return new_resources
 
     def create(self, resource, bulk_limit=1000):
-        if isinstance(resource, list):
+        if isinstance(resource, list) and len(resource) > 0:
             response_resources = None
-            if hasattr(resource._class__, 'bulkSupported'):
+            if hasattr(resource[0].__class__, 'bulkSupported'):
                 response_resources = self._bulk_create(resource, bulk_limit)
             else:
                 response_resources = []
@@ -239,6 +258,8 @@ class FMCBaseRestClient(FMCRawRestClient):
                     response_resources.append(item)
             return response_resources
         else:
+            if isinstance(resource, list):
+                resource = resource[0]
             return self._single_create(resource)
 
     def load(self, resource):
