@@ -266,9 +266,11 @@ class FMCBaseRestClient(FMCRawRestClient):
         url_path = resource.get_api_path()
         if resource.id:
             url_path += '/' + str(resource.id)
-        json_resp = self.get(url_path)
-        resource.json_load(json_resp)
-        return resource
+            json_resp = self.get(url_path)
+            resource.json_load(json_resp)
+            return resource
+        else:
+            return self.list(resource)
 
     def get(self, resource):
         if isinstance(resource, str):

@@ -11,12 +11,13 @@ Features
 -  Listing for a particular resource type supports fetching all results
    in single go
 -  Easy to add support for new resources or url endpoints
+-  Support for bulk create, leveraging FMC REST API where available
+   or support in client
 
 Enhancements in future
 ~~~~~~~~~~~~~~~~~~~~~~
 
--  Support for bulk operations, leveraging FMC REST API where available
-   or support in client
+
 -  Iterator for list operation
 -  Get by name
 
