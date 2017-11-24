@@ -67,6 +67,15 @@ class ReferenceType:
         self.name = obj.name
 
 class BaseResource:
+    """
+    Base Resource for all resources
+    If this resource support bulk API add methods which support bulk operation in
+    bulk_operations list. Use following operations - POST, PUT etc.
+
+    """
+
+    bulk_operations = []
+
     def __init__(self):
         self.type = self.__class__.__name__
 

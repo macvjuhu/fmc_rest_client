@@ -1,21 +1,22 @@
 from setuptools import find_packages
 from setuptools import setup
+from os import path
 
 def readme():
-    with open('README.md') as f:
+    current_dir = path.abspath(path.dirname(__file__))
+    with open(path.join(current_dir, 'README.rst'), encoding='utf-8') as f:
         return f.read()
 
 setup(name='fmc_rest_client',
-      version='0.1',
+      version='0.5',
       description='FMC REST API Client',
       long_description=readme(),
       classifiers=[
           'Development Status :: 3 - Alpha',
-          'License :: OSI Approved :: MIT',
+          'License :: OSI Approved :: MIT License',
           'Programming Language :: Python :: 3 :: Only',
           'Topic :: Security',
           'Topic :: System :: Networking :: Firewalls',
-          'Topic :: System :: Security Administration'
       ],
       keywords='firepower management rest-api',
       url='https://github.com/macvjuhu/fmc_rest_client',
