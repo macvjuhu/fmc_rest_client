@@ -1,4 +1,6 @@
 ### Using REST Client
+
+#### An object create, list, update and delete example
 Create FMCRestClient instance
 ```
 fmc = FMCRestClient(fmc_server_url, username, password)
@@ -19,6 +21,15 @@ host1 = fmc.load(host1)
 print(host1.json())
 # delete host1 from FMC
 fmc.remove(host1)
+```
+#### Creating objects in bulk
+```
+fmc = FMCRestClient(fmc_server_url, username, password)
+# create a resource instance
+host1 = Host('host1', '1.1.1.1')
+host2 = Host('host2', '2.2.2.2')
+# create in FMC
+hosts = fmc.create([host1, host2])
 ```
 
 Checkout the directory **'samples'** for more example script using this client.
@@ -85,3 +96,12 @@ class NetworkGroup(ObjectResource):
 Refer AccessPolicy and AccessRule class examples in fmc_rest_client.resources module.
 AccessPolicy uses a AccessPolicyDefaultAction for a nested structure for defaultAction field, while AccessRule
 uses a dict for field sourceNetworks.
+
+##### Resource having bulk support
+If the FMC API supports bulk payload for a particular operation, to leverage that capability
+you should specify that operation in bulk_operations list, as shown below example -
+
+```
+class AccessRule(ContainedPolicyResource):
+    bulk_operations = ['POST']
+```

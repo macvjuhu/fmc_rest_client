@@ -53,7 +53,7 @@ class AccessPolicyDefaultAction(BaseContainedResource):
 
 """
 class AccessRule(ContainedPolicyResource):
-    bulkSupported = True
+    bulk_operations = ['POST']
 
     def __init__(self, name=None, container=None):
         super().__init__(name, container)

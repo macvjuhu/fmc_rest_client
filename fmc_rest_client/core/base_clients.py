@@ -233,7 +233,7 @@ class FMCBaseRestClient(FMCRawRestClient):
         bulk_resources = resources
         if len(resources) > bulk_limit:
             bulk_resources = resources[:bulk_limit]
-        post_data = json_dump(bulk_resources)
+        post_data = json_dump(bulk_resources, pretty=False)
         json_resp = self.post(url_path, post_data)
         #print('Bulk response ' + str(json_resp))
         new_resources = []
@@ -249,7 +249,7 @@ class FMCBaseRestClient(FMCRawRestClient):
     def create(self, resource, bulk_limit=1000):
         if isinstance(resource, list) and len(resource) > 0:
             response_resources = None
-            if hasattr(resource[0].__class__, 'bulkSupported'):
+            if 'POST' in resource[0].__class__.bulk_operations:
                 response_resources = self._bulk_create(resource, bulk_limit)
             else:
                 response_resources = []

@@ -5,7 +5,7 @@ import sys
 from fmc_rest_client import FMCRestClient
 from fmc_rest_client.resources import *
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 fmc_server_url = None
 username = None
@@ -76,9 +76,12 @@ if __name__ == "__main__":
         acp = fmc.create(acp)
         print('Created acp ' + acp.name)
         net1 = Host('host1', '1.1.1.1')
-        net1 = fmc.create(net1)
+        #net1 = fmc.create(net1)
         net2 = Host('host2', '2.2.2.2')
-        net2 = fmc.create(net2)
+        #net2 = fmc.create(net2)
+        nets = fmc.create([net1, net2])
+        net1 = nets[0]
+        net2 = nets[1]
         rule1 = AccessRule('rule1', acp)
         rule1.action = 'ALLOW'
         rule1.sourceNetworks = { 'objects' : [ net1]}
