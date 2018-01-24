@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 action='create'
 
 def usage():
-    print('script -s <fmc server url> -u <username> -p <password> -n <object_count> [-p <obj_prefix>')
+    print('script -s <fmc server url> -u <username> -p <password> -n <object_count> [-p <obj_prefix>] [-b <obj_name_start_indx>]')
 
 def parse_args(argv):
     fmc_server_url = None
@@ -22,8 +22,10 @@ def parse_args(argv):
     password = None
     object_count = None
     object_name_prefix = 'NWHostObject_'
+    start_index = 0
+
     try:
-        opts, args = getopt.getopt(argv,'hu:p:s:n:f:a:', ['file='])
+        opts, args = getopt.getopt(argv,'hu:p:s:n:f:a:b:', ['file='])
     except getopt.GetoptError as e:
         print(str(e))
         usage()
@@ -39,6 +41,8 @@ def parse_args(argv):
             password = arg
         elif opt == '-s':
             fmc_server_url = arg
+        elif opt == '-b':
+            start_index = int(arg)
         elif opt == '-n':
             object_count = int(arg)
         elif opt == '-f':
@@ -51,10 +55,10 @@ def parse_args(argv):
                 #sys.exit(2)
         else:
             pass
-    if not (object_count and fmc_server_url and username and password) :
+    if (object_count == None or fmc_server_url == None or username == None or password == None):
         usage()
         sys.exit(2)
-    return username, password, fmc_server_url, object_count, object_name_prefix
+    return username, password, fmc_server_url, object_count, object_name_prefix, start_index
                          
 """
     Increment the last index number of string , ex: obj_1 to obj_2
@@ -96,13 +100,13 @@ def ipRangeByCount(start_ip, total_ip):
       i += 1
    return ip_range         
         
-def create_range_objects(rest_client, nwObjCount, nwObjName, first_nwObjvalue, last_nwObjvalue=None):
+def create_range_objects(rest_client, nwObjCount, nwObjName, first_nwObjvalue, start_index=0, last_nwObjvalue=None):
     if last_nwObjvalue:
         iprange = ipRange(first_nwObjvalue, last_nwObjvalue)
     else:
         iprange = ipRangeByCount(first_nwObjvalue, nwObjCount)
     for i in range(1, nwObjCount+1):
-        key=nwObjName+str(i)
+        key=nwObjName+str(i + start_index)
         ip_index=i%len(iprange)
         print('Creating object {} = {}'.format(key, iprange[ip_index]))
         value=str(iprange[ip_index])
@@ -116,11 +120,14 @@ def create_range_objects(rest_client, nwObjCount, nwObjName, first_nwObjvalue, l
 
 if __name__ == "__main__":
     start_time = datetime.now().replace(microsecond=0)
-    username, password, fmc_server_url, object_count, object_name_prefix = parse_args(sys.argv[1:])
+    username, password, fmc_server_url, object_count, object_name_prefix, start_index = parse_args(sys.argv[1:])
     print('Connecting to FMC {} ...'.format(fmc_server_url))
     rest_client = FMCRestClient(fmc_server_url, username, password)
     print('Connected Successfully')
     print("Objects to be created:", object_count)
-    create_range_objects(rest_client, object_count, object_name_prefix, "10.10.10.1")
+    if object_count > 0:
+        create_range_objects(rest_client, object_count, object_name_prefix, "10.10.10.1", start_index)
     end_time = datetime.now().replace(microsecond=0)
     print("Script completed in {}s.".format(str(end_time - start_time)))
+
+

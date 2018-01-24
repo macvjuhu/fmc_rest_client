@@ -82,35 +82,31 @@ def process_types_arg(types):
     print('Types selected for cleanup: {}'.format(list(map(lambda x: x.__class__.__name__, obj_list))))
     return obj_list
 
-'''
-    Returns List of all object, of type mentioned in objectlist argument
-'''        
-def load_objects(rest_client, objectlist):
-    # just load SZ
-    resources_to_load = []
-    obj_list=[]
-    resources_to_load.extend(objectlist)
-    for resource in resources_to_load:
-        objs = rest_client.list(resource)
-        obj_list.extend(objs)
-    return obj_list
-   
-def delete_objects(rest_client, object_list, skip_read_only=False):
+
+def delete_objects(rest_client, obj_types, skip_read_only=False, obj_name_prefix=None):
     failed_obj_dict = {}
     deleted_obj_list = []
-    for obj in object_list:
-        try:
-            if not obj_name_prefix or obj_name_prefix in obj.name:
-                if skip_read_only and hasattr(obj, 'metadata') and 'readOnly' in obj.metadata and \
-                                'state' in obj.metadata['readOnly'] and obj.metadata['readOnly']["state"]:
-                    #print (obj.__dict__)
-                    print('Skipping delete for read only object {}'.format(obj.name))
-                    continue
-                rest_client.remove(obj)
-                deleted_obj_list.append(obj)
-
-        except Exception  as e:
-            failed_obj_dict[obj.name] = str(e)
+    for obj_type in obj_types:
+        resource_iterator = rest_client.list_iterator(obj_type)
+        print('Found total {} objects at this point: {}'.format(type(obj_type).__name__, str(resource_iterator.total)))
+        print('Deleting objects of type {}'.format(type(obj_type).__name__), end='')
+        if obj_name_prefix:
+            print(' starting name with {}'.format(obj_name_prefix), end='')
+        print(' ...')
+        for resource in resource_iterator:
+            try:
+                if not obj_name_prefix or obj_name_prefix in resource.name:
+                    if skip_read_only and hasattr(resource, 'metadata') and 'readOnly' in resource.metadata and \
+                                    'state' in resource.metadata['readOnly'] and resource.metadata['readOnly']["state"]:
+                        #print (obj.__dict__)
+                        print('\tSkipping delete for read only object {}'.format(resource.name))
+                        continue
+                    print('\tDeleting {} object {}'.format(type(resource).__name__, resource.name), end='')
+                    rest_client.remove(resource)
+                    print(' \t\tdone.')
+                    deleted_obj_list.append(resource)
+            except Exception as e:
+                failed_obj_dict[resource] = str(e)
     return failed_obj_dict, deleted_obj_list
 
 
@@ -150,13 +146,13 @@ def write_report(report_filename, failed_obj_dict, deleted_obj_list, dump_delete
             write_line_to_file('-' * 120, fh)
             msg='Total number of object failed to delete: ' + str(len(failed_obj_dict))
             write_line_to_file(msg, fh)
-            write_line_to_file('Failed object list:', fh)
+            write_line_to_file('Failed objects list:', fh)
             write_line_to_file('-' * 120, fh)
-            for key,value in failed_obj_dict.items():
-                key = 'Object name: ' + key
-                value = '\tReason for failure: '+value
-                write_line_to_file(key, fh)
-                write_line_to_file(value, fh)
+            for resource,reason in failed_obj_dict.items():
+                resource = '{}: {}'.format(type(resource).__name__, resource.name)
+                reason = '\tReason for failure: ' + reason
+                write_line_to_file(resource, fh)
+                write_line_to_file(reason, fh)
             write_line_to_file('-'*120, fh)
 
     
@@ -168,13 +164,7 @@ if __name__ == '__main__':
     rest_client = FMCRestClient(fmc_server_url, username, password)
     print('Connected Successfully')
     report_file = 'ObjectCleanupReport.txt'
-    obj_list = load_objects(rest_client, obj_types)
-    print('Found total objects: {}'.format(str(len(obj_list))))
-    print('Deleting objects', end='')
-    if obj_name_prefix:
-        print(' matching {}'.format(obj_name_prefix),end='')
-    print(' ...')
-    result = delete_objects(rest_client, obj_list, skip_read_only)
+    result = delete_objects(rest_client, obj_types, skip_read_only, obj_name_prefix)
     write_report(report_file, result[0], result[1])
     end_time = datetime.now().replace(microsecond=0)
     print("Script completed in {}s.".format(str(end_time - start_time)))
