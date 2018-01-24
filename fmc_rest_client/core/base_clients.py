@@ -32,6 +32,46 @@ class ResourceException(Exception):
         self.code = code
         self.message = message
 
+class RESTListIterator:
+    """
+
+    """
+    def __init__(self, resource, rest_client):
+        self.current_index = 0
+        self.offset = 0
+        self.resource = resource
+        self.rest_client = rest_client
+        self.list_cache, paging = rest_client._list(resource)
+        self.total = paging['count']
+        self.page_size = paging['limit']
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.next()
+
+    def next(self):
+        if self.current_index < self.total:
+            cache_size = len(self.list_cache)
+            logger.debug('Fetching item number {} out of {}'.format(self.current_index, self.total))
+            logger.debug('Current offset {} and Cache size {}'.format(self.offset, cache_size))
+            if self.current_index == self.offset + cache_size:
+                #fetch next page if we are done reading cached page
+                self.offset = self.current_index
+                logger.debug('Fetching page starting at offset {}'.format(self.offset))
+                self.list_cache, paging = self.rest_client._list(self.resource, self.offset)
+                if paging['count'] != self.total:
+                    logger.warning("Resource size changed on server")
+                self.total = paging['count']
+                if self.current_index > self.total:
+                    logger.warning("Resource size got reduced than current iteration")
+                    raise StopIteration("Resource size got reduced.")
+            resource = self.list_cache[self.current_index - self.offset]
+            self.current_index += 1
+            return resource
+        else:
+            raise StopIteration()
 
 class FMCRawRestClient(object):
     def __init__(self, server, username=None, password=None, auth_token=None, domain='default'):
@@ -60,10 +100,12 @@ class FMCRawRestClient(object):
             auth_token = auth_headers.get('X-auth-access-token', default=None)
             if auth_token is None:
                 logger.error('auth_token not found.')
-                raise Exception('auth_token not found')
+                raise ResourceException(ResourceException.AUTH_FAILED)
             else:
                 logger.debug('Got auth_token - ' + auth_token)
             return auth_token
+        except ResourceException as e:
+            raise e
         except Exception as err:
             # logger.debug('Error in generating auth token --> '+str(err))
             raise Exception('Error in generating auth token --> ' + str(err))
@@ -96,8 +138,18 @@ class FMCRawRestClient(object):
                     return response_json
                 except ResourceException as e:
                     if e.code == ResourceException.AUTH_FAILED and reauth_retry_count > 0:
-                        reauth_retry_count -= 1
-                        self.auth_token = self.get_auth_token()
+                        #we may get auth-failed when calling get_auth_token as well, that's why this retry loop
+                        while True:
+                            try:
+                                reauth_retry_count -= 1
+                                logger.debug('Retrying re-auth, retry left {}.'.format(reauth_retry_count))
+                                self.auth_token = self.get_auth_token()
+                                break # break inner loop for get_auth_token
+                            except ResourceException as e:
+                                if e.code == ResourceException.AUTH_FAILED and reauth_retry_count > 0:
+                                    continue
+                                else:
+                                    raise e
                     elif e.code == ResourceException.TOO_MANY_REQUESTS and request_retry_count > 0:
                         request_retry_count -= 1
                         time.sleep(5)
@@ -185,7 +237,21 @@ class FMCRawRestClient(object):
             raise e
         return response
 
-    def _list(self, resource, offset=None):
+    """
+        The following json structure is retruned from FMC in case of list call
+        {
+            "items": [ <resource1>, ... ],
+            "paging": {
+                "offset": 0,
+                "limit": 25,
+                "count": 162,
+                "next": [...],
+                "pages": 7
+            }
+        }
+    
+    """
+    def _list(self, resource, offset=None, limit=None):
         url_path = resource.get_api_path()
         json_resp = self.rest_call('list', url_path, offset=offset, expanded=True)
         objs = []
@@ -196,10 +262,13 @@ class FMCRawRestClient(object):
                 obj.json_load(json_obj)
                 objs.append(obj)
                 # print(objs)
-        pages = 0
+        paging = {}
         if 'paging' in json_resp:
-            pages = int(json_resp['paging']['pages'])
-        return objs, pages
+            paging['pages'] = int(json_resp['paging']['pages'])
+            paging['offset'] = int(json_resp['paging']['offset'])
+            paging['count'] = int(json_resp['paging']['count'])
+            paging['limit'] = int(json_resp['paging']['limit'])
+        return objs, paging
 
     ######## Raw HTTP calls ###########
     ## these uses the raw payload which is json ##
@@ -312,7 +381,7 @@ class FMCBaseRestClient(FMCRawRestClient):
         result = self._list(resource, offset=offset)
         objs.extend(result[0])
 
-        pages = result[1] - 1  # we already read one page
+        pages = result[1]['pages'] - 1  # we already read one page
         while pages > 0:
             offset += len(result[0])
             logger.debug('pages ' + str(pages))
@@ -329,3 +398,6 @@ class FMCBaseRestClient(FMCRawRestClient):
 class FMCRestClient(FMCBaseRestClient):
     def __init__(self, server, username=None, password=None, auth_token=None, domain='default'):
         super(FMCRestClient, self).__init__(server, username, password, auth_token, domain)
+
+    def list_iterator(self, resource):
+        return RESTListIterator(resource, self)

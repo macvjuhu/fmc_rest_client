@@ -7,11 +7,12 @@ Easy to use REST Client for Firepower Management Center REST API
 * Listing for a particular resource type supports fetching all results in single go
 * Easy to add support for new resources or url endpoints
 * Support for bulk create, leveraging FMC REST API where available or support in client
+* Iterator for list operation
 
 ### Enhancements in future
-* Iterator for list operation
 * Get by name
 
 ## How to use this library
-Refer [How To](HOWTO.md)
+Get this library from PyPI using 'pip install fmc_rest_client'.
+Refer [How To](HOWTO.md) for further details on using this library.
 
