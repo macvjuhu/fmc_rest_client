@@ -72,4 +72,9 @@ class AccessRule(ContainedPolicyResource):
         self.destinationPorts = { 'objects': [] }
 
 
+class IntrusionPolicy(PolicyResource):
+
+    def __init__(self, name=None):
+        super().__init__(name)
+        self.name = name
 
