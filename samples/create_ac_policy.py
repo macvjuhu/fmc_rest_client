@@ -94,9 +94,13 @@ if __name__ == "__main__":
         print(rules[1].json())
         # another network object
         # Add another source network in rule1
-        #rule1.sourceNetworks['objects'].append(net2)
-        #rule1 = fmc.update(rule1)
-
+        rule1 = rules[0]
+        rule1.sourceNetworks['objects'].append(net2)
+        rule1 = fmc.update(rule1)
+        rules = fmc.list_iterator(AccessRule(container=acp))
+        print('Iterating over all the rules ')
+        for rule in rules:
+            print(rule.json(full_dump=True))
 
     finally:
         fmc.remove(acp)

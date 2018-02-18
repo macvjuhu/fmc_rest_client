@@ -1,16 +1,20 @@
 from setuptools import find_packages
 from setuptools import setup
 from os import path
+import sys
 
 def readme():
-    current_dir = path.abspath(path.dirname(__file__))
-    with open(path.join(current_dir, 'README.rst'), encoding='utf-8') as f:
-        return f.read()
+    if sys.version_info[0] == 3:
+        current_dir = path.abspath(path.dirname(__file__))
+        with open(path.join(current_dir, 'README.rst'), encoding='utf-8') as f:
+            return f.read()
+    else:
+        return 'Needs python >= 3'
 
 
 setup(
     name='fmc_rest_client',
-    version='0.5.2',
+    version='0.5.3',
     python_requires='>=3',
     description='FMC REST API Client',
     long_description=readme(),

@@ -16,3 +16,5 @@ Easy to use REST Client for Firepower Management Center REST API
 Get this library from PyPI using 'pip install fmc_rest_client'.
 Refer [How To](HOWTO.md) for further details on using this library.
 
+## Contribution
+Feel free to clone or contribute directly using a pull request on github.
