@@ -96,8 +96,7 @@ def delete_objects(rest_client, obj_types, skip_read_only=False, obj_name_prefix
         for resource in resource_iterator:
             try:
                 if not obj_name_prefix or obj_name_prefix in resource.name:
-                    if skip_read_only and hasattr(resource, 'metadata') and 'readOnly' in resource.metadata and \
-                                    'state' in resource.metadata['readOnly'] and resource.metadata['readOnly']["state"]:
+                    if skip_read_only and resource.metadata.readOnly.state:
                         #print (obj.__dict__)
                         print('\tSkipping delete for read only object {}'.format(resource.name))
                         continue

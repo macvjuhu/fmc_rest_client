@@ -15,7 +15,6 @@ from fmc_rest_client.core.base_resources import *
 }
 """
 class AccessPolicy(PolicyResource):
-    
     def __init__(self, name=None, default_action='TRUST', desc=None):
         super().__init__(name)
         self.name = name
@@ -24,7 +23,6 @@ class AccessPolicy(PolicyResource):
 
 
 class AccessPolicyDefaultAction(BaseContainedResource):
-
     def __init__(self, action='TRUST', log_begin=True, log_end=False):
         super()
         self.logBegin = log_begin
@@ -32,6 +30,16 @@ class AccessPolicyDefaultAction(BaseContainedResource):
         self.sendEventsToFMC = False
         self.action = action
 
+class AccessRuleMetadata(Metadata):
+    def __init__(self, ruleIndex=-1, accessPolicy:ReferenceType=None, domain:ReferenceType=None, readOnly: ReadOnly=None):
+        super().__init__(domain, readOnly)
+        if accessPolicy:
+            self.accessPolicy = accessPolicy
+        else: #set so that json_load can find the type
+            self.accessPolicy = ReferenceType(None)
+        self.section = 'Mandatory'
+        self.category = None
+        self.ruleIndex = ruleIndex
 
     
 """
@@ -70,6 +78,11 @@ class AccessRule(ContainedPolicyResource):
         self.destinationNetworks = { 'objects': [], 'literals': [] }
         self.sourcePorts = { 'objects':  [] }
         self.destinationPorts = { 'objects': [] }
+        self.metadata = AccessRuleMetadata()
 
-
+    def json_load(self, json):
+        super().json_load(json)
+        if self.metadata.accessPolicy.id:
+            self.container = AccessPolicy()
+            self.container.id = self.metadata.accessPolicy.id
 

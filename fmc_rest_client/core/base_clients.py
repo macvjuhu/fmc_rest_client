@@ -34,7 +34,7 @@ class ResourceException(Exception):
 
 class RESTListIterator:
     """
-
+        Iterator for REST List Resource
     """
     def __init__(self, resource, rest_client):
         self.current_index = 0
@@ -292,7 +292,7 @@ class FMCBaseRestClient(FMCRawRestClient):
 
     def _single_create(self, resource):
         url_path = resource.get_api_path()
-        post_data = resource.json(pretty=False)
+        post_data = resource.json(pretty=False, full_dump=False)
         json_resp = self.post(url_path, post_data)
         resource.json_load(json_resp)
         return resource
@@ -302,7 +302,7 @@ class FMCBaseRestClient(FMCRawRestClient):
         bulk_resources = resources
         if len(resources) > bulk_limit:
             bulk_resources = resources[:bulk_limit]
-        post_data = json_dump(bulk_resources, pretty=False)
+        post_data = json_dump(bulk_resources, pretty=False, full_dump=False)
         json_resp = self.post(url_path, post_data)
         #print('Bulk response ' + str(json_resp))
         new_resources = []
@@ -351,7 +351,7 @@ class FMCBaseRestClient(FMCRawRestClient):
         url_path = resource.get_api_path()
         if resource.id:
             url_path += '/' + str(resource.id)
-        post_data = resource.json(pretty=False)
+        post_data = resource.json(pretty=False, full_dump=False)
         json_resp = self.put(url_path, post_data)
         resource.json_load(json_resp)
         return resource

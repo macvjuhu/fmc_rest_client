@@ -22,3 +22,8 @@ How to use this library
 ----------
 Get this library from PyPI using 'pip3 install fmc_rest_client'.
 Refer HOWTO.md for further details on using this library.
+
+
+Contribution
+----------
+Feel free to clone or contribute directly using a pull request on github.
