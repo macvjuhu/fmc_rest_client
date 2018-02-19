@@ -214,4 +214,10 @@ class ContainedPolicyResource(PolicyResource):
     def json_ignore_attrs():
         return ['container']
 
+class Device(NamedResource):
+    def __init__(self, name, id=None):
+        super().__init__(name, id)
+        self.metadata = Metadata()
 
+    def get_api_path(self):
+        return self._get_api_base() + '/devices/' + self._get_resource_suffix()
