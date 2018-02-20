@@ -220,4 +220,4 @@ class Device(NamedResource):
         self.metadata = Metadata()
 
     def get_api_path(self):
-        return self._get_api_base() + '/devices/devicerecords/' + self._get_resource_suffix()
+        return self._get_api_base() + '/devices/devicerecords/'
