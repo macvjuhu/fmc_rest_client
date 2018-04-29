@@ -9,13 +9,6 @@ from fmc_rest_client.resources import *
 
 logging.basicConfig(level=logging.INFO)
 
-
-fmc_server_url = None
-username = None
-password = None
-obj_types = []
-obj_name_prefix = None
-skip_read_only = False
 types_map = {
     'networks': [ NetworkGroup(), Host() , Network(), Range()],
     'ports': [PortObjectGroup(), Port(), ICMPV4Object(), ICMPV6Object() ]
@@ -23,8 +16,19 @@ types_map = {
 
 supported_types = ['AccessPolicy', 'FtdNatPolicy', 'NetworkGroup', 'Host' , 'Network', 'Range', 'SecurityZone', 'InterfaceGroup', 'PortObjectGroup', 'Port', 'ICMPV4Object', 'ICMPV6Object']
 
+INCORRECT_TYPES_MSG = "Incorrect objects specified along with '-t' option. Pass the comma separated list of following - \n\t{}. " \
+      "\nYou can also use - 'networks' for all network type objects, 'ports' for all port type objects.".format(
+    supported_types)
+
+fmc_server_url = None
+username = None
+password = None
+obj_name_prefix = None
+skip_read_only = False
+obj_types = []
+
 def usage():
-    print('script -s <fmc server url> -u <username> -p <password> -t <comma separated types> [-x <object name prefix>]')
+    print('script -s <fmc server url> -u <username> -p <password> [-t <comma separated types>] [-x <object name prefix>]')
 
 def parse_args(argv):
     global fmc_server_url
@@ -58,26 +62,29 @@ def parse_args(argv):
             obj_name_prefix = arg
         else:
             pass
+    if len(obj_types) == 0:
+        obj_types = get_object_list(supported_types)
+
     if password is None or username is None or fmc_server_url is None or len(obj_types)== 0:
         usage()
         sys.exit(2)
 
 def process_types_arg(types):
     type_list = types.split(',')
-    msg = "Incorrect objects specified along with '-t' option. Pass the comma separated list of following - \n\t{}. " \
-          "\nYou can also use - 'networks' for all network type objects, 'ports' for all port type objects.".format(supported_types)
     if len(type_list) == 0:
-        print(msg)
+        print(INCORRECT_TYPES_MSG)
         sys.exit(2)
-    obj_list = []
+    return get_object_list(type_list)
 
+def get_object_list(type_list):
+    obj_list = []
     for t in type_list:
         if t in types_map:
             obj_list.extend(types_map[t])
         elif t in globals():
             obj_list.append(globals()[t]())
     if len(obj_list) == 0:
-        print(msg)
+        print(INCORRECT_TYPES_MSG)
         sys.exit(2)
     print('Types selected for cleanup: {}'.format(list(map(lambda x: x.__class__.__name__, obj_list))))
     return obj_list
