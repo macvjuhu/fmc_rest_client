@@ -91,3 +91,7 @@ class SecurityGroupTag(ObjectResource):
         super().__init__(name)
         self.tag = tag
         self.description = desc
+
+class VariableSet(ObjectResource):
+    def __init__(self, name=None):
+        super().__init__(name)
