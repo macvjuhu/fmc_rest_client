@@ -28,7 +28,7 @@ skip_read_only = False
 obj_types = []
 
 def usage():
-    print('script -s <fmc server url> -u <username> -p <password> [-t <comma separated types>] [-x <object name prefix>]')
+    print('script -s <fmc server url> -u <username> -p <password> [-t <comma separated types>] [-x <object name prefix>] [--skip-readonly]')
 
 def parse_args(argv):
     global fmc_server_url
@@ -108,13 +108,22 @@ def delete_objects(rest_client, obj_types, skip_read_only=False, obj_name_prefix
                         print('\tSkipping delete for read only object {}'.format(resource.name))
                         continue
                     print('\tDeleting {} object {}'.format(type(resource).__name__, resource.name), end='')
-                    rest_client.remove(resource)
+                    delete_object(resource)
                     print(' \t\tdone.')
                     deleted_obj_list.append(resource)
             except Exception as e:
                 failed_obj_dict[resource] = str(e)
     return failed_obj_dict, deleted_obj_list
 
+
+def delete_object(resource):
+    """
+    Deletes an object, for interface group and security zone, it first unlink interfaces.
+    """
+    if type(resource) == SecurityZone or type(resource) == InterfaceGroup:
+        resource.interfaces = []
+        rest_client.update(resource)
+    rest_client.remove(resource)
 
 '''
 print the std output both to terminal as well as to File
