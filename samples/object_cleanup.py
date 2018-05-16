@@ -11,7 +11,8 @@ logging.basicConfig(level=logging.INFO)
 
 types_map = {
     'networks': [ NetworkGroup(), Host() , Network(), Range()],
-    'ports': [PortObjectGroup(), Port(), ICMPV4Object(), ICMPV6Object() ]
+    'ports': [PortObjectGroup(), Port(), ICMPV4Object(), ICMPV6Object() ],
+    'ifobjects' : [ SecurityZone(), InterfaceGroup() ]
 }
 
 supported_types = ['AccessPolicy', 'FtdNatPolicy', 'NetworkGroup', 'Host' , 'Network', 'Range', 'SecurityZone', 'InterfaceGroup', 'PortObjectGroup', 'Port', 'ICMPV4Object', 'ICMPV6Object']
