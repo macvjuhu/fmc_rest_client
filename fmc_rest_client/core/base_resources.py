@@ -215,7 +215,7 @@ class ContainedPolicyResource(PolicyResource):
         return ['container']
 
 class Device(NamedResource):
-    def __init__(self, name, id=None):
+    def __init__(self, name=None, id=None):
         super().__init__(name, id)
         self.metadata = Metadata()
 
