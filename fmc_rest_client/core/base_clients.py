@@ -133,7 +133,7 @@ class FMCRawRestClient(object):
             request_retry_count = 5
             while True:
                 try:
-                    headers = {'Content-Type': 'application/json', 'X-auth-access-token': self.auth_token}
+                    headers = {'Content-Type': 'application/json', 'X-auth-access-token': self.auth_token,  'Authorization' : 'Bearer ' + self.auth_token}
                     status_code, response_json =  self._rest_call(method, url, post_data, headers, offset, expanded)
                     return response_json
                 except ResourceException as e:
