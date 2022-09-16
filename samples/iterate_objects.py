@@ -3,6 +3,7 @@ import getopt
 import logging
 import re
 import sys
+import json
 from datetime import datetime
 
 from fmc_rest_client import FMCRestClient
@@ -24,12 +25,13 @@ def parse_args(argv):
     fmc_server_url = None
     username = None
     password = None
+    auth_token = None
     object_types = []
     #whole operation will be repeated this many times
     repeat = 1
 
     try:
-        opts, args = getopt.getopt(argv,'hu:p:s:t:r:', ['--types'])
+        opts, args = getopt.getopt(argv,'hu:p:s:t:r:', ['--types', 'auth='])
     except getopt.GetoptError as e:
         print(str(e))
         usage()
@@ -48,14 +50,16 @@ def parse_args(argv):
             object_types = process_types_arg(arg)
         elif opt == '-r' or opt == '--repeat':
             repeat = int(arg)
+        elif opt == '--auth':
+            auth_token = arg
         else:
             usage()
             sys.exit(2)
 
-    if (len(object_types) == 0 or fmc_server_url == None or username == None or password == None):
+    if (len(object_types) == 0 or fmc_server_url == None or ((username == None or password == None) and (auth_token ==None))):
         usage()
         sys.exit(2)
-    return username, password, fmc_server_url, object_types, repeat
+    return username, password, auth_token, fmc_server_url, object_types, repeat
                          
 def process_types_arg(types):
     type_list = types.split(',')
@@ -79,10 +83,10 @@ def process_types_arg(types):
 
 
 if __name__ == "__main__":
-    username, password, fmc_server_url, object_types, repeat = parse_args(sys.argv[1:])
+    username, password, auth_token, fmc_server_url, object_types, repeat = parse_args(sys.argv[1:])
     start_time = datetime.now().replace(microsecond=0)
     print('Connecting to FMC {} ...'.format(fmc_server_url))
-    rest_client = FMCRestClient(fmc_server_url, username, password)
+    rest_client = FMCRestClient(fmc_server_url, username, password, auth_token)
     end_time = datetime.now().replace(microsecond=0)
     print('Connected Successfully in {}s'.format(str(end_time - start_time)))
     start_time = datetime.now().replace(microsecond=0)
@@ -92,10 +96,14 @@ if __name__ == "__main__":
             print('Iterating objects of type {} ...'.format(type(obj_type).__name__))
             for resource in rest_client.list_iterator(obj_type):
                 print("Resource name " + resource.name)
+                try:
+                    obj = rest_client.load(resource)
+                    print("Resource value " + obj.json())
+                except Exception as ex:
+                    print("Failed to get object  " + str(ex));
                 count += 1
             print('Total {} objects of type {} iterated.'.format(count, type(obj_type).__name__))
     end_time = datetime.now().replace(microsecond=0)
     print('Script completed in {}s.'.format(str(end_time - start_time)))
-
 
 

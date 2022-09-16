@@ -9,23 +9,24 @@ from fmc_rest_client import FMCRestClient
 from fmc_rest_client import ResourceException
 from fmc_rest_client.resources import *
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 action='create'
 
 def usage():
-    print('script -s <fmc server url> -u <username> -p <password> -n <object_count> [-p <obj_prefix>] [-b <obj_name_start_indx>]')
+    print('script -s <fmc server url> -u <username> -p <password> --auth <auth-token> -n <object_count> [--prefix <obj_prefix>] [-b <obj_name_start_indx>]')
 
 def parse_args(argv):
     fmc_server_url = None
     username = None
     password = None
+    auth_token= None
     object_count = None
     object_name_prefix = 'NWHostObject_'
     start_index = 0
 
     try:
-        opts, args = getopt.getopt(argv,'hu:p:s:n:f:a:b:', ['file='])
+        opts, args = getopt.getopt(argv,'hu:p:s:n:f:a:b:', ['file=', "auth=", "prefix="])
     except getopt.GetoptError as e:
         print(str(e))
         usage()
@@ -47,7 +48,10 @@ def parse_args(argv):
             object_count = int(arg)
         elif opt == '-f':
             object_name_prefix = arg
-        #elif opt == '-a':
+        elif opt == '--prefix':
+            object_name_prefix = arg
+        elif opt == '--auth':
+            auth_token = arg
             #action=arg
             #if action != 'create' || action !='delete' :
                 #print('Invalid action :' , action)
@@ -55,10 +59,10 @@ def parse_args(argv):
                 #sys.exit(2)
         else:
             pass
-    if (object_count == None or fmc_server_url == None or username == None or password == None):
+    if (object_count == None or fmc_server_url == None or ((username == None or password == None) and auth_token == None)):
         usage()
         sys.exit(2)
-    return username, password, fmc_server_url, object_count, object_name_prefix, start_index
+    return username, password, auth_token, fmc_server_url, object_count, object_name_prefix, start_index
                          
 """
     Increment the last index number of string , ex: obj_1 to obj_2
@@ -105,14 +109,19 @@ def create_range_objects(rest_client, nwObjCount, nwObjName, first_nwObjvalue, s
         iprange = ipRange(first_nwObjvalue, last_nwObjvalue)
     else:
         iprange = ipRangeByCount(first_nwObjvalue, nwObjCount)
+    hosts = []
+    print('Creating objects ...' )
     for i in range(1, nwObjCount+1):
         key=nwObjName+str(i + start_index)
         ip_index=i%len(iprange)
-        print('Creating object {} = {}'.format(key, iprange[ip_index]))
+        #print('Creating object {} = {}'.format(key, iprange[ip_index]))
         value=str(iprange[ip_index])
+        hosts.append(Host(key,value))
+    
+    if len(hosts) > 0:
         if rest_client:
             try:           
-                rest_client.create(Host(key,value))
+                rest_client.create(hosts)
             except ResourceException as e:
                 if ResourceException.NAME_EXISTS == e.code:
                     print('Object already exists in FMC\n')
@@ -120,9 +129,9 @@ def create_range_objects(rest_client, nwObjCount, nwObjName, first_nwObjvalue, s
 
 if __name__ == "__main__":
     start_time = datetime.now().replace(microsecond=0)
-    username, password, fmc_server_url, object_count, object_name_prefix, start_index = parse_args(sys.argv[1:])
+    username, password, auth_token, fmc_server_url, object_count, object_name_prefix, start_index = parse_args(sys.argv[1:])
     print('Connecting to FMC {} ...'.format(fmc_server_url))
-    rest_client = FMCRestClient(fmc_server_url, username, password)
+    rest_client = FMCRestClient(fmc_server_url, username, password, auth_token)
     print('Connected Successfully')
     print("Objects to be created:", object_count)
     if object_count > 0:
