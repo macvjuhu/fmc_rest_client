@@ -14,7 +14,7 @@ def readme():
 
 setup(
     name='fmc_rest_client',
-    version='0.5.3',
+    version='0.5.4',
     python_requires='>=3',
     description='FMC REST API Client',
     long_description=readme(),

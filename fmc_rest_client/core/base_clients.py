@@ -19,6 +19,8 @@ INVALID_NAME_ERROR = ['Invalid Object Name']
 
 TOO_MANY_REQUESTS = 'Too Many Requests'
 
+BULK_FETCH_LIMIT=1000
+
 class ResourceException(Exception):
     GENERIC = 'generic'
     READ_ONLY = 'read-only'
@@ -229,7 +231,7 @@ class FMCRawRestClient(object):
             elif method == 'delete':
                 response = requests.delete(url, headers=headers, verify=False)
             elif method == 'list':
-                params = {'limit': 4000, 'offset': offset, 'expanded': expanded}
+                params = {'limit': BULK_FETCH_LIMIT, 'offset': offset, 'expanded': expanded}
                 response = requests.get(url, headers=headers, params=params, verify=False)
             else:
                 raise Exception('Unknown method ' + method)
@@ -297,7 +299,7 @@ class FMCBaseRestClient(FMCRawRestClient):
         resource.json_load(json_resp)
         return resource
 
-    def _bulk_create(self, resources, bulk_limit=1000):
+    def _bulk_create(self, resources, bulk_limit=BULK_FETCH_LIMIT):
         url_path = resources[0].get_api_path() + '?bulk=true'
         bulk_resources = resources
         if len(resources) > bulk_limit:
@@ -315,7 +317,7 @@ class FMCBaseRestClient(FMCRawRestClient):
             new_resources.extend(tmp_resources)
         return new_resources
 
-    def create(self, resource, bulk_limit=1000):
+    def create(self, resource, bulk_limit=BULK_FETCH_LIMIT):
         if isinstance(resource, list) and len(resource) > 0:
             response_resources = None
             if 'POST' in resource[0].__class__.bulk_operations:
@@ -378,15 +380,17 @@ class FMCBaseRestClient(FMCRawRestClient):
         :return:
         """
         objs = []
-        result = self._list(resource, offset=offset)
+        result = self._list(resource, offset=offset, limit=min(limit,BULK_FETCH_LIMIT))
         objs.extend(result[0])
 
         pages = result[1]['pages'] - 1  # we already read one page
         while pages > 0:
+            if (len(objs) > limit):
+                break
             offset += len(result[0])
             logger.debug('pages ' + str(pages))
             logger.debug('offset ' + str(offset) + ' len(objs) ' + str(len(objs)))
-            result = self._list(resource, offset=offset)
+            result = self._list(resource, offset=offset, limit=min(BULK_FETCH_LIMIT,limit-len(objs)))
             pages -= 1
             objs.extend(result[0])
         #FIXME: Need to fetch based on limit
